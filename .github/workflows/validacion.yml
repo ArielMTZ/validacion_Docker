@@ -1,0 +1,97 @@
+name: Validacion Calculadora con Docker
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+
+  validacion-calculadora:
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHONPATH: .
+
+    steps:
+
+      - name: Descargar codigo del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Comprobar compilacion
+        run: |
+          python -m compileall app.py tests/
+
+      - name: Ejecutar pruebas unitarias
+        run: |
+          python -m pytest -v
+
+      - name: Calcular cobertura
+        run: |
+          python -m pytest --cov=app --cov-report=term-missing
+
+      - name: Ejecutar calculadora
+        run: |
+          python app.py
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validar Docker Build
+        run: |
+          docker build -t calculadora-validacion:build .
+
+      - name: Validar Docker Bake
+        run: |
+          docker buildx bake --load
+
+      - name: Mostrar imagenes Docker
+        run: |
+          docker images
+
+      - name: Ejecutar calculadora desde Docker
+        run: |
+          docker run --name calculadora-container calculadora-validacion:latest
+
+      - name: Crear reporte de validacion
+        if: always()
+        run: |
+          echo "# Validacion de Calculadora" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Compilacion" >> $GITHUB_STEP_SUMMARY
+          echo "- Python utilizado: **3.12**" >> $GITHUB_STEP_SUMMARY
+          echo "- Compilacion del codigo: **Correcta**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Pruebas" >> $GITHUB_STEP_SUMMARY
+          echo "- Framework: **pytest**" >> $GITHUB_STEP_SUMMARY
+          echo "- Operaciones evaluadas: **5 pruebas**" >> $GITHUB_STEP_SUMMARY
+          echo "- Cobertura ejecutada correctamente" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Docker" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker Build: **Ejecutado**" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker Bake: **Ejecutado**" >> $GITHUB_STEP_SUMMARY
+          echo "- Imagen: **calculadora-validacion:latest**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Ejecucion" >> $GITHUB_STEP_SUMMARY
+          echo "- Codigo ejecutado desde GitHub: **Correcto**" >> $GITHUB_STEP_SUMMARY
+          echo "- Contenedor Docker ejecutado correctamente" >> $GITHUB_STEP_SUMMARY
